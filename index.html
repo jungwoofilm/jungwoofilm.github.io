@@ -16,7 +16,7 @@ header,main,footer{width:min(100% - clamp(32px,8vw,136px),1440px);margin-inline:
 .editor-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0}.editor-search{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.editor-search input{min-width:0;max-width:100%;background:#141414;color:var(--ink);border:1px solid #737373;padding:7px 10px}.role-editor{display:flex;gap:14px;flex-wrap:wrap;border:0;padding:0;margin:12px 0 0}.role-editor legend{color:var(--muted);margin-bottom:5px}.role-editor label{display:flex;gap:5px;align-items:center}[hidden]{display:none!important}
 </style>
 <header><strong>YOO JUNG WOO</strong><a href="#work">Work</a></header>
-<main><div class="masthead"><h1><span class="masthead-name">YOO JUNG WOO</span> <span class="masthead-role">PRODUCER PORTFOLIO</span></h1><a class="masthead-social" href="https://www.instagram.com/jungwoo__yoo/" target="_blank" rel="noopener noreferrer">@jungwoo__yoo</a></div><section class="hero" id="hero" aria-label="대표작"></section>
+<main><div class="masthead"><h1><span class="masthead-name">YOO JUNG WOO</span> <span class="masthead-role">PRODUCER PORTFOLIO</span></h1><a class="masthead-social" href="https://www.instagram.com/jungwoo__yoo/" target="_blank" rel="noopener noreferrer">@jungwoo__yoo</a></div>
 <section id="work"><div class="work-head"><h2>Work</h2></div><div class="filters" id="categories" role="group" aria-label="영상 유형"></div><div class="filters" id="roles" role="group" aria-label="담당 역할 필터"><button data-role="" aria-pressed="true">전체</button><button data-role="제작" aria-pressed="false">제작</button><button data-role="편집" aria-pressed="false">편집</button></div><div class="grid" id="projects" aria-live="polite"></div><button id="more" type="button" style="margin-top:24px">작품 더 보기</button></section></main>
 <footer class="muted">YOO JUNG WOO · 영상 제작 및 편집</footer>
 <script id="saved-roles" type="application/json">{}</script>
@@ -94,7 +94,7 @@ function saveRoles(work,choices,roleText){
   work.roles = roleNames.filter((role,index)=>choices[index].checked);
   roleEdits[work.id] = work.roles;
   roleText.textContent = work.roles.join(' · ')||'담당 역할 확인 중';
-  if(work===newest) hero.replaceChildren(...workView(work,true));
+  
   try {
     localStorage.setItem(storageKey,JSON.stringify(roleEdits));
     editStatus.textContent = '이 브라우저에 저장했습니다.';
@@ -139,7 +139,7 @@ function downloadPortfolio(forSharing){
 }
 exportButton?.addEventListener('click',()=>downloadPortfolio(false));
 document.querySelector('#share-portfolio')?.addEventListener('click',()=>downloadPortfolio(true));
-const hero = document.querySelector('#hero');
+
 const projects = document.querySelector('#projects');
 function element(tag,text){
   const node=document.createElement(tag);
@@ -194,7 +194,7 @@ function workView(work,featured){
   wrap.append(thumbnail,details);
   return wrap;
 }
-if(newest) hero.append(...workView(newest,true));
+
 const more = document.querySelector('#more');
 const pageSize = 24;
 let matches = [];
