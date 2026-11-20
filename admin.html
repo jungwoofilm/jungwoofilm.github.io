@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>정우필름 관리자</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#080808;color:#eee;font:16px/1.5 system-ui,sans-serif}main{max-width:1100px;margin:auto;padding:28px 20px}h1{font-size:24px}h2{font-size:16px;margin:0 0 10px}a{color:#ccc}input,button,select{font:inherit}input[type=password],input[type=search],select{background:#171717;color:#eee;border:1px solid #555;padding:10px;max-width:100%}button{background:#eee;color:#111;border:0;padding:10px 15px;cursor:pointer}button:disabled{opacity:.45;cursor:default}label{display:inline-flex;align-items:center;gap:7px;margin-right:18px}#key{width:100%}.bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:20px 0}.row{display:grid;grid-template-columns:120px 1fr;gap:18px;border-bottom:1px solid #333;padding:18px 0}.row img{width:120px;aspect-ratio:16/9;object-fit:cover}p{color:#aaa}#status{white-space:pre-wrap}#savebar{position:sticky;top:0;background:#080808;padding:12px 0;z-index:2;border-bottom:1px solid #333}[hidden]{display:none!important}@media(max-width:500px){.row{grid-template-columns:80px 1fr;gap:12px}.row img{width:80px}}
+</style>
+<main><a href="/">포트폴리오 보기</a><h1>작품 역할 관리</h1>
+<form id="connect"><p>GitHub 연결 키로 인증하면 작품별 역할을 저장할 수 있습니다. 연결 키는 현재 화면의 메모리에서만 사용합니다.</p>
+<p>GitHub에서 계정 <strong>jungwoofilm</strong>의 저장소 <strong>jungwoofilm.github.io</strong>만 선택한 Fine-grained token을 만들고, Repository permissions의 Contents를 Read and write로 설정하세요.</p>
+<p><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">GitHub 연결 키 생성 화면</a></p>
+<label for="key">GitHub 연결 키</label><input id="key" type="password" required autocomplete="off"><div class="bar"><button>연결하기</button></div></form>
+<p id="status" role="status" aria-live="polite"></p>
+<section id="editor" hidden><div class="bar" id="savebar"><button id="save">사이트에 저장</button><button id="logout">연결 종료</button><span id="count"></span></div><div class="bar"><input id="search" type="search" placeholder="작품 제목 검색" aria-label="작품 제목 검색"><select id="filter" aria-label="역할 필터"><option value="">전체</option><option value="unassigned">미지정</option><option value="제작">제작</option><option value="편집">편집</option></select></div><div id="list"></div></section>
+</main>
+<script>
+const apiRoot='https://api.github.com';
+const repository='/repos/jungwoofilm/jungwoofilm.github.io/contents/index.html';
+const get=id=>document.getElementById(id);
+let token='', source='', sha='', works=[], roles={}, changes=new Map();
+const allowed=['제작','편집'];
+function status(message){get('status').textContent=message;}
+async function api(path,options={}){
+ const response=await fetch(apiRoot+path,{...options,headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28',...options.headers}});
+ if(!response.ok) throw new Error(response.status===409?'다른 수정이 먼저 저장됐습니다. 다시 저장해 주세요.':response.status===401?'연결 키가 유효하지 않습니다.':response.status===403?'연결 키의 저장소 쓰기 권한을 확인해 주세요.':'GitHub 요청 실패 ('+response.status+')');
+ return response.json();
+}
+function decode(content){const bytes=Uint8Array.from(atob(content.replace(/\s/g,'')),c=>c.charCodeAt(0));return new TextDecoder().decode(bytes);}
+function encode(content){let binary='';for(const byte of new TextEncoder().encode(content))binary+=String.fromCharCode(byte);return btoa(binary);}
+function extract(content){
+ const marker='const works = ';
+ const start=content.indexOf(marker);
+ const end=content.indexOf(';\nconst snapshotDate',start);
+ if(start<0||end<0)throw new Error('작품 데이터를 찾을 수 없습니다.');
+ const entries=JSON.parse(content.slice(start+marker.length,end));
+ const match=content.match(/<script id="saved-roles" type="application\/json">([^<]*)<\/script>/);
+ if(!match)throw new Error('역할 데이터를 찾을 수 없습니다.');
+ const saved=JSON.parse(match[1]);
+ return {entries,saved};
+}
+function render(){
+ const query=get('search').value.toLowerCase().trim(), filter=get('filter').value;
+ const list=get('list');list.replaceChildren();
+ const matches=works.filter(w=>(!query||w.title.toLowerCase().includes(query))&&(!filter||(filter==='unassigned'?!roles[w.id]?.length:roles[w.id]?.includes(filter))));
+ for(const work of matches){
+  const row=document.createElement('article');row.className='row';
+  const image=document.createElement('img');image.src='https://i.ytimg.com/vi/'+work.id+'/hqdefault.jpg';image.alt='';image.loading='lazy';
+  const detail=document.createElement('div'), title=document.createElement('h2');title.textContent=work.title;detail.append(title);
+  for(const role of allowed){
+   const label=document.createElement('label'), check=document.createElement('input');check.type='checkbox';check.checked=(roles[work.id]||[]).includes(role);check.setAttribute('aria-label',work.title+' '+role);
+   check.addEventListener('change',()=>{
+    const next=new Set(roles[work.id]||[]);
+    if(check.checked)next.add(role);else next.delete(role);
+    roles[work.id]=allowed.filter(r=>next.has(r));changes.set(work.id,roles[work.id]);updateCount();
+   });
+   label.append(check,document.createTextNode(role));detail.append(label);
+  }
+  row.append(image,detail);list.append(row);
+ }
+ if(!matches.length)list.textContent='해당 작품이 없습니다.';
+ updateCount();
+}
+function updateCount(){get('count').textContent='전체 '+works.length+'편 · 수정 '+changes.size+'편';get('save').disabled=!changes.size;}
+get('connect').addEventListener('submit',async event=>{
+ event.preventDefault();token=get('key').value.trim();get('key').value='';status('계정 확인 중…');
+ try{
+  const user=await api('/user');if(user.login.toLowerCase()!=='jungwoofilm')throw new Error('jungwoofilm 계정으로 연결해 주세요.');
+  const file=await api(repository);source=decode(file.content);sha=file.sha;
+  const parsed=extract(source);works=parsed.entries;roles={};
+  for(const work of works)roles[work.id]=allowed.filter(r=>(parsed.saved[work.id]??work.roles??[]).includes(r));
+  changes.clear();get('connect').hidden=true;get('editor').hidden=false;status('연결됐습니다. 역할을 체크한 뒤 사이트에 저장을 눌러주세요.');render();
+ }catch(error){token='';status(error.message);}
+});
+get('save').addEventListener('click',async()=>{
+ get('save').disabled=true;status('저장 중…');
+ try{
+  const latest=await api(repository), latestSource=decode(latest.content), parsed=extract(latestSource);
+  const latestIds=new Set(parsed.entries.map(w=>w.id));
+  for(const [id,value] of changes){if(!latestIds.has(id))throw new Error('삭제된 작품이 포함되어 있습니다. 연결을 종료한 뒤 다시 연결해 주세요.');parsed.saved[id]=value;}
+  const data=JSON.stringify(parsed.saved).replaceAll('<','\\u003c');
+  const content=latestSource.replace(/(<script id="saved-roles" type="application\/json">)[^<]*(<\/script>)/,(_,a,b)=>a+data+b);
+  await api(repository,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Update portfolio production and editing credits',content:encode(content),sha:latest.sha})});
+  source=content;changes.clear();status('저장했습니다. 공개 사이트에 반영되기까지 약 1~2분 걸릴 수 있습니다.');updateCount();
+ }catch(error){status(error.message);updateCount();}
+});
+get('logout').addEventListener('click',()=>{
+ if(changes.size&&!confirm('저장하지 않은 변경 사항이 있습니다. 연결을 종료할까요?'))return;
+ token='';source='';sha='';works=[];roles={};changes.clear();get('list').replaceChildren();get('editor').hidden=true;get('connect').hidden=false;status('연결을 종료했습니다.');
+});
+get('search').addEventListener('input',render);get('filter').addEventListener('change',render);
+window.addEventListener('beforeunload',event=>{if(changes.size){event.preventDefault();event.returnValue='';}});
+</script></html>
