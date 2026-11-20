@@ -204,7 +204,7 @@ function workView(work,featured){
   }
   details.append(heading);
   if(work.published) details.append(date);
-  else details.append(element('span',work.ageLabel+' · 2026.11.20 확인'));
+
   const format=element('p',categoryLabels.get(work.category));
   format.className='muted';
   details.append(format,roles);
