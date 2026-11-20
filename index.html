@@ -27,7 +27,6 @@ function publicationOrder(work){
   return work.published ? (snapshotDate-Date.parse(work.published))/86400000 : work.age;
 }
 const sorted = [...works].sort((a,b)=>publicationOrder(a)-publicationOrder(b) || b.position-a.position);
-const newest = sorted[0];
 const categories = [
   ['all','전체'],
   ['mv','뮤직비디오'],
@@ -68,6 +67,7 @@ for(const work of works){
     : matched ?? 'other';
   work.category = categoryOverrides.get(work.id) ?? inferred;
 }
+const newest = sorted.find(work=>work.category==='mv');
 const exportTemplate = document.documentElement.cloneNode(true);
 const readOnly = document.documentElement.hasAttribute('data-readonly');
 const storageKey = 'yoo-jung-woo-portfolio-roles-v1';
