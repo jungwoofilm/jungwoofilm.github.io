@@ -29,7 +29,8 @@ const categories = [
   ['all','전체'],
   ['mv','뮤직비디오'],
   ['performance','퍼포먼스'],
-  ['live','콘서트·라이브'],
+  ['concert','콘서트'],
+  ['live','라이브클립'],
   ['teaser','콘셉트'],
   ['brand','광고·브랜드'],
   ['behind','비하인드·메이킹'],
@@ -80,6 +81,11 @@ for(const work of works){
     ? (sketch ? 'behind' : campaign ? 'brand' : matched ?? 'youtube')
     : matched ?? 'other';
   work.category = categoryOverrides.get(work.id) ?? inferred;
+}
+for(const work of works){
+  if(work.category==='live' && /concert|콘서트|festival|world tour|fan meeting|stage w|transmedia/i.test(work.title)){
+    work.category='concert';
+  }
 }
 const newest = sorted.find(work=>work.category==='mv');
 const exportTemplate = document.documentElement.cloneNode(true);
